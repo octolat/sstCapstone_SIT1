@@ -43,9 +43,10 @@ def main():
          [2,0,0],
          [2,1,0],
          [1,0,1],
-         [1,1,1]
+         [1,1,1],
+         [0,1,0]
          ]
-    p_path = [0,1,2,4,1,3]
+    p_path = [0,1,2,4,3,0,5,2,1]
     tmp = [[0,0,0],
            [5,0,0],
            [1,3,0],
@@ -55,6 +56,7 @@ def main():
     translator(p_path,p)
 
 def translator(path,corners_pos):
+    instructions = ""
     bend_dir = 1
     rotate_dir = 1
     past_N = None
@@ -69,27 +71,56 @@ def translator(path,corners_pos):
         if i > 1: #can find bend
             pt3 = path[i-2]
             v2 = find_vector(pt3,pt2, corners_pos)
+            #bend magnitude
             instruct_bend = find_angleBetweenVec(v2, v1)
+            #current plans normal
             curr_N = find_unitNormal(v2, v1)
         if i > 2: 
-            #find rotate
+            #rotate magnitude
             instruct_rotate = find_angleBetweenVec(past_N,curr_N)
-            #check if the bend is a different direction
-            if instruct_rotate == 180: #change dir but not plane
+            print(instruct_rotate)
+            print(past_N,curr_N)
+            #does bend/rotation direction change?
+            if instruct_rotate == 180: #bend changes direction (no plane change)
                 instruct_rotate = 0
                 bend_dir = -bend_dir
+                print()
             elif instruct_rotate != 0: #we are changing plane
-                #normal of normal
+                #change  
+                #normal of 2 normals' plane
                 nOfN = find_unitNormal(v2,v1)
+                rotate_angle = find_rotaryangle(past_N,curr_N)
+                print(rotate_angle)
                 if find_angleBetweenVec(nOfN, v1) == 180:
-                    rotate_dir = -rotate_dir
+                    bend_dir = -bend_dir
         if i > 1:
             past_N = curr_N #ik ts is disgusting but first node still havent find normal
         instruct_rotate *= rotate_dir
         instruct_bend *= bend_dir
-        print(f"corner: {path[i]}, r:{instruct_rotate}, b:{instruct_bend}, f:{instruct_feed}    ")
+        print(f"corner: {path[i]}, r:{instruct_rotate}, b:{instruct_bend}, f:{instruct_feed}")
+
     #rotate, bend, feed
-    #first group, feed only
+    #first group, feed only   
+    
+def find_rotaryangle(a,b):
+    normal = find_unitNormal(a,b) #find the unit normal of the normals
+    a_dot_n = find_dotProduct(a,normal) # dot product of a and normal to find costheta
+    b_dot_n = find_dotProduct(b,normal)
+    a_proj = find_project(a,a_dot_n,normal)
+    b_proj = find_project(b,b_dot_n,normal)
+    cross_proj = find_crossProduct(a_proj,b_proj) #cross product them to get the 
+    y = find_dotProduct(cross_proj,normal)
+    x = find_dotProduct(a_proj,b_proj)
+    return math.atan2(y,x)/math.pi * 180 #atan2 cus it gives astc
+
+def find_project(a,a_dot_n,n): 
+    # to find projection
+    # a.n gives |a|costheta cus n is unit vector, which is the shadow of the line on the normal axis
+    # multiply by the n that it correlated to, so like the [x,y,z] gets multiplied back to its original
+    # subtract that from the original a_x
+    # so now all three axes are projected onto new plane
+    a_proj = [a[i]-a_dot_n*n[i] for i in range(3)] 
+    return a_proj
 
 def find_unitNormal(z,y):
     #find normal
