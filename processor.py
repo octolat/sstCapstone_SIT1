@@ -68,36 +68,52 @@ def translator(path,corners_pos):
         pt2, pt1 = path[i-1], path[i] #pt1 is curr, pt2 is previous
         instruct_feed = find_lineLength(pt1, pt2, corners_pos)
         v1 = find_vector(pt2,pt1, corners_pos)
-        if i > 1: #can find bend
+        if i > 1: 
+            #find bend
             pt3 = path[i-2]
             v2 = find_vector(pt3,pt2, corners_pos)
             #bend magnitude
             instruct_bend = find_angleBetweenVec(v2, v1)
-            #current plans normal
+            #current planes normal
             curr_N = find_unitNormal(v2, v1)
         if i > 2: 
-            #rotate magnitude
+            rotate_angle = 0
+            #find rotate
             instruct_rotate = find_angleBetweenVec(past_N,curr_N)
-            print(instruct_rotate)
-            print(past_N,curr_N)
-            #does bend/rotation direction change?
+            
+            
+
+            #changing of be
             if instruct_rotate == 180: #bend changes direction (no plane change)
                 instruct_rotate = 0
                 bend_dir = -bend_dir
-                print()
+                #print()
             elif instruct_rotate != 0: #we are changing plane
                 #change  
                 #normal of 2 normals' plane
                 nOfN = find_unitNormal(v2,v1)
                 rotate_angle = find_rotaryangle(past_N,curr_N)
-                print(rotate_angle)
+                #print(rotate_angle)
                 if find_angleBetweenVec(nOfN, v1) == 180:
                     bend_dir = -bend_dir
+            print(instruct_rotate, rotate_angle)
         if i > 1:
             past_N = curr_N #ik ts is disgusting but first node still havent find normal
+
+
         instruct_rotate *= rotate_dir
         instruct_bend *= bend_dir
         print(f"corner: {path[i]}, r:{instruct_rotate}, b:{instruct_bend}, f:{instruct_feed}")
+
+        #make txt file
+        if instruct_rotate != 0:
+            instructions += "R" + str(round(instruct_rotate,1)) + "\n"
+        if instruct_bend != 0:
+            instructions += "B" + str(round(instruct_bend,1)) + "\n"
+        instructions += "F" + str(round(instruct_feed,1)) + "\n"
+
+    with open("instructions.txt", "w") as f:
+        f.write(instructions)
 
     #rotate, bend, feed
     #first group, feed only   
@@ -111,6 +127,7 @@ def find_rotaryangle(a,b):
     cross_proj = find_crossProduct(a_proj,b_proj) #cross product them to get the 
     y = find_dotProduct(cross_proj,normal)
     x = find_dotProduct(a_proj,b_proj)
+    #print(a_dot_n, b_dot_n)
     return math.atan2(y,x)/math.pi * 180 #atan2 cus it gives astc
 
 def find_project(a,a_dot_n,n): 
@@ -131,7 +148,10 @@ def find_unitNormal(z,y):
     return n
 
 def find_angleBetweenVec(z,y):
-    theta = math.acos(find_dotProduct(z,y))/math.pi*180
+    dotprd = find_dotProduct(z,y)
+    dotprd /= find_lineLength(0,1,[[0,0,0],z])
+    dotprd /= find_lineLength(0,1,[[0,0,0],y])
+    theta = math.acos(dotprd)/math.pi*180
     if theta < 0.1: theta = 0 #if its colineear jus get clamp it
     return theta
 
@@ -149,8 +169,6 @@ def find_dotProduct(z, y):
     sum = 0
     for i in range(3):
         sum += z[i]*y[i]
-    sum /= find_lineLength(0,1,[[0,0,0],z])
-    sum /= find_lineLength(0,1,[[0,0,0],y])
     return sum
 
 def find_vector(a,b, corner_pos):
