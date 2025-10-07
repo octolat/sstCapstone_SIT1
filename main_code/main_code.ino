@@ -1,7 +1,5 @@
-
-
 // Libraries
-#include <Servo.h>
+
 #include <SD.h>
 #include <SPI.h>
 #include <string.h>
@@ -11,6 +9,7 @@
 
 using namespace std;
 
+
 //Global Variables
 const int chipselect = 53;
 String funct = "";
@@ -18,7 +17,6 @@ String dir = "";
 double centi_amt;
 double degree_amt;
 double pi = 2 * acos(0.0); 
-Servo my_servo;
 
 
 //Define Stepper motors 
@@ -29,9 +27,6 @@ AccelStepper bend_stepper(AccelStepper::DRIVER, 4, 7); // Z Driver ((Don't Chang
 
 void setup() {
   Serial.begin(9600);
-
-  // Attach servo motor to a digital pin
-  my_servo.attach(48);
 
   //Stepper Settings
   pinMode(enable_pin, OUTPUT); // Set up enable pin
@@ -92,4 +87,37 @@ void setup() {
           Serial.println((((degree_amt / 360) * 200) / 24) * 60);
           if (dir == "-") {
             rotate_stepper.moveTo((((degree_amt / 360) * 200) / 24) * 60);
-            while (rotate_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts fro
+            while (rotate_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+              rotate_stepper.runSpeedToPosition();
+            }
+          } else {
+            rotate_stepper.moveTo((-(((degree_amt / 360) * 200) / 24) * 60));
+            while (rotate_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+              rotate_stepper.runSpeedToPosition();
+            }
+          }
+          // rotate_stepper.runToPosition();
+          delay(2000);
+        } else if (funct == "B") {
+          degree_amt = line.substring(2).toFloat();
+          if (dir == "-") {
+            bend_stepper.moveTo((degree_amt/360)*200);
+            while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+              bend_stepper.runSpeedToPosition();
+            }
+          } else {
+            bend_stepper.moveTo((-(degree_amt/360)*200));
+            while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+              bend_stepper.runSpeedToPosition();
+            }
+          }
+          delay(2000);
+        }
+      }
+    }
+  }
+}
+
+void loop () {
+
+}
