@@ -1,5 +1,5 @@
 // Libraries
-
+#include <Servo.h>
 #include <SD.h>
 #include <SPI.h>
 #include <string.h>
@@ -17,6 +17,7 @@ String dir = "";
 double centi_amt;
 double degree_amt;
 double pi = 2 * acos(0.0); 
+Servo myservo;
 
 
 //Define Stepper motors 
@@ -25,12 +26,31 @@ AccelStepper feed_stepper(AccelStepper::DRIVER, 2, 5); // X Driver ((Don't Chang
 AccelStepper rotate_stepper(AccelStepper::DRIVER, 3, 6); // Y Driver ((Don't Change), stepPin, dirPin)
 AccelStepper bend_stepper(AccelStepper::DRIVER, 4, 7); // Z Driver ((Don't Change), stepPin, dirPin)
 
+
+//Test to find center of pin
+void setPin (float angle) {
+  bend_stepper.moveTo((-((((angle / 360) * 200) / 17 ) * 31) * 8));  // Move forward again
+
+  while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+    bend_stepper.runSpeedToPosition();
+  }
+  bend_stepper.setCurrentPosition(0);
+  delay(500);
+  bend_stepper.moveTo((-((((15 / 360) * 200) / 17 ) * 31) * 8));
+  while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+    bend_stepper.runSpeedToPosition();
+  }
+}
+
 void setup() {
   Serial.begin(9600);
+
+  myservo.attach(48); // Attaches servo to pin
 
   //Stepper Settings
   pinMode(enable_pin, OUTPUT); // Set up enable pin
   digitalWrite(enable_pin, LOW); // Enable Drivers
+  bend_stepper.setCurrentPosition(0);
 
   //// Feeding Stepper Motor Settings
   feed_stepper.setMaxSpeed(2000); // Max speed of stepper
@@ -43,79 +63,115 @@ void setup() {
   rotate_stepper.setSpeed(1200); //Set the constant speed that the stepper will move
 
   //// Bending Stepper Motor Settings
-  bend_stepper.setMaxSpeed(1000); // Max speed of stepper
-  bend_stepper.setAcceleration(700); //Set acceleration for stepper
-  bend_stepper.setSpeed(1000); //Set the constant speed that the stepper will move
+  bend_stepper.setMaxSpeed(5000); // Max speed of stepper
+  bend_stepper.setAcceleration(7000); //Set acceleration for stepper
+  bend_stepper.setSpeed(3000); //Set the constant speed that the stepper will move
 
-  // SD Card Reader
-  //// Reader Initialization
-  SD.begin(chipselect);
-  Serial.println("Initializing SD Card...");
-  if (!SD.begin(chipselect)) {
-    Serial.println("Initialization failed");
-    // while (1);
-  } else {
-    Serial.println("Initialization done");
-  }
+  // Make pin center 
+  setPin(125);
+  
+  // // SD Card Reader
+  // //// Reader Initialization
+  // SD.begin(chipselect);
+  // Serial.println("Initializing SD Card...");
+  // if (!SD.begin(chipselect)) {
+  //   Serial.println("Initialization failed");
+  //   // while (1);
+  // } else {
+  //   Serial.println("Initialization done");
+  // }
 
-  //// Reading SD Card
-  File file = SD.open("rotate.txt");
-  if (!file) {
-    Serial.println("Error opening file!");   // File does not exist
-  } else {
-    if (file.size() == 0) {
-      Serial.println("File exists but is empty!");
-    } else {
-      while (file.available()) {
-        String line = file.readStringUntil('\n');
-        Serial.println(line);
-        // Serial.println(line[0]);
-        // Serial.println(line.substring(1));
-        funct = line[0];
-        dir = line[1];
-        Serial.println(funct);
-        if (funct == "F") {
-          centi_amt = line.substring(2).toFloat();
-          Serial.println((centi_amt / (33.33*pi)) * 200);
-          feed_stepper.moveTo((-(centi_amt / (33.33*pi)) * 200)); // (2.76 * pi) / 200
-          while (feed_stepper.distanceToGo() != 0) {
-            feed_stepper.runSpeedToPosition();
-          }
-          delay(2000);
-        } else if (funct == "R") {
-          degree_amt = line.substring(2).toFloat();
-          Serial.println((((degree_amt / 360) * 200) / 24) * 60);
-          if (dir == "-") {
-            rotate_stepper.moveTo((((degree_amt / 360) * 200) / 24) * 60);
-            while (rotate_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-              rotate_stepper.runSpeedToPosition();
-            }
-          } else {
-            rotate_stepper.moveTo((-(((degree_amt / 360) * 200) / 24) * 60));
-            while (rotate_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-              rotate_stepper.runSpeedToPosition();
-            }
-          }
-          // rotate_stepper.runToPosition();
-          delay(2000);
-        } else if (funct == "B") {
-          degree_amt = line.substring(2).toFloat();
-          if (dir == "-") {
-            bend_stepper.moveTo((degree_amt/360)*200);
-            while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-              bend_stepper.runSpeedToPosition();
-            }
-          } else {
-            bend_stepper.moveTo((-(degree_amt/360)*200));
-            while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-              bend_stepper.runSpeedToPosition();
-            }
-          }
-          delay(2000);
-        }
-      }
-    }
-  }
+  // //// Reading SD Card
+  // File file = SD.open("bend.txt");
+  // if (!file) {
+  //   Serial.println("Error opening file!");   // File does not exist
+  // } else {
+  //   if (file.size() == 0) {
+  //     Serial.println("File exists but is empty!");
+  //   } else {
+  //     while (file.available()) {
+  //       String line = file.readStringUntil('\n');
+  //       Serial.println(line);
+  //       // Serial.println(line[0]);
+  //       // Serial.println(line.substring(1));
+  //       funct = line[0];
+  //       dir = line[1];
+  //       Serial.println(funct);
+  //       if (funct == "F") {
+  //         centi_amt = line.substring(1).toFloat();
+  //         Serial.println((centi_amt / (33.33*pi)) * 200);
+  //         feed_stepper.move((-((centi_amt / (33.33*pi)) * 200))); // (2.76 * pi) / 200);
+  //         while (feed_stepper.distanceToGo() != 0) {
+  //           feed_stepper.runSpeedToPosition();
+  //         }
+  //         feed_stepper.setCurrentPosition(0);
+  //         delay(2000);
+  //       } else if (funct == "R") {
+  //         degree_amt = line.substring(2).toFloat();
+  //         Serial.println((((degree_amt / 360) * 200) / 24) * 60);
+  //         if (dir == "-") {
+  //           rotate_stepper.move((((degree_amt / 360) * 200) / 24) * 60);
+  //           while (rotate_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+  //             rotate_stepper.runSpeedToPosition();
+  //           }
+  //         } else {
+  //           rotate_stepper.move((-(((degree_amt / 360) * 200) / 24) * 60));
+  //           while (rotate_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+  //             rotate_stepper.runSpeedToPosition();
+  //           }
+  //         }
+  //         // rotate_stepper.runToPosition();
+  //         delay(2000);
+  //       } else if (funct == "B") {
+  //         myservo.write(120);
+  //         delay(500);
+  //         degree_amt = line.substring(2).toFloat();
+  //         if (dir == "-") {
+  //           if (bend_stepper.currentPosition() == 0) {
+  //             myservo.write(90);
+  //             delay(500);
+  //             bend_stepper.moveTo(((((degree_amt / 360) * 200) / 17) * 31) * 8);  // Move forward again
+  //             while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+  //               bend_stepper.runSpeedToPosition();
+  //             }
+  //             myservo.write(0);
+  //             delay(500);
+  //             bend_stepper.moveTo(0);
+  //             while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+  //               bend_stepper.runSpeedToPosition();
+  //             }
+  //           }
+  //         } else {
+  //           if (bend_stepper.currentPosition() == 0) {
+  //             myservo.write(120);
+  //             delay(500);
+  //             bend_stepper.moveTo((-(((degree_amt / 360) * 200) / 17) * 31) * 8);  // Move forward again
+  //             while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+  //               bend_stepper.runSpeedToPosition();
+  //             }
+  //             myservo.write(0);
+  //             delay(500);
+  //             bend_stepper.moveTo(0);
+  //             while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+  //               bend_stepper.runSpeedToPosition();
+  //             }
+  //           }
+  //           // bend_stepper.moveTo((-(degree_amt / 360) * 200));
+  //           // while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+  //           //   bend_stepper.runSpeedToPosition();
+  //           // }
+  //           // myservo.write(0);
+  //           // delay(500);
+  //           // bend_stepper.moveTo((degree_amt / 360) * 200);
+  //           // while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
+  //           //   bend_stepper.runSpeedToPosition();
+  //           // }
+  //         }
+  //         delay(2000);
+  //       }
+  //     }
+  //   }
+  // }
 }
 
 void loop () {
