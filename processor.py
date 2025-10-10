@@ -7,6 +7,7 @@ import copy
 import sys
 import math
 
+
 """   Functions
 import_shape(file) -> corner_pos, edges
 make_eulerian(corners_pos, edges) -> edges
@@ -24,8 +25,9 @@ debug_printList(list) -> None
 """  
 
 def main():
+    corners_pos, edges, normals = import_shape("shapes/triangle.obj")
     '''
-    corners_pos, edges = import_shape("cube.obj")
+    corners_pos, edges = import_shape("shapes/cube.obj")
     edges_eulered = make_eulerian(corners_pos, edges)
     path = heirholzer(edges_eulered)
     edges_straight, path_straight = anti_180_rerouting(corners_pos, edges, path)
@@ -33,6 +35,7 @@ def main():
     debug_animatePath(corners_pos, path, 0.7)
     #debug_animatePath(corners_pos, path_straight, 0.7)
     '''
+
     t = [
         [0,0,0],
         [0,1,1],
@@ -42,27 +45,100 @@ def main():
     p = [[0,0,0],
          [2,0,0],
          [2,1,0],
-         [1,0,1],
+         [0,1,0],
          [1,1,1],
-         [0,1,0]
-         ]
-    p_path = [0,1,2,4,3,0,5,2,1]
+         [1,0,1]
+         ] 
+    p_path = [0,1,2,4,5,0,3,4,5,1]
+    p_path_shifted = [2,1,3,6,5,2,4]
     tmp = [[0,0,0],
            [5,0,0],
            [1,3,0],
            [2,1,1],
            [1,-3,0]]
     t_path = [0,1,2,3,0]
-    translator(p_path,p)
 
-def translator(path,corners_pos):
+
+
+
+    #debug_renderShape(corners_pos,edges,True)
+    debug_printList(corners_pos)
+    print()
+    print(normals)
+    translator(p_path_shifted,corners_pos,normals)
+
+def translator(path,corners_pos, normals):
     instructions = ""
-    bend_dir = 1
+    old_N = rotational_axis_vec = None
+
+    for i in range(1, len(path)):
+        N_of_Normal = instruct_bend = instruct_feed = instruct_rotate = curr_N = 0
+
+        #find points and vectors
+        pt2, pt1 = path[i-1], path[i] #pt1 is curr, pt2 is previous
+        v1 = find_vector(pt2,pt1, corners_pos)
+        if i > 1:
+            pt3 = path[i-2]
+            v2 = find_vector(pt3, pt2, corners_pos)
+            curr_N = find_referenceNormal(pt1,pt2,pt3,normals)
+
+        #find feed
+        instruct_feed = find_lineLength(pt1, pt2, corners_pos)
+
+        #find bend
+        if i > 1:
+            instruct_bend = find_angleBetweenVec(v2,v1)
+            false_normal = find_unitNormal(v2,v1)
+            r = find_angleBetweenVec(false_normal, curr_N)
+            if r == 0:
+                instruct_bend *= 1 #clockwise
+            elif r == 180:
+                instruct_bend *= -1 #anti clockwise
+
+        #find rotate
+        if i > 2:
+            instruct_rotate = find_angleBetweenVec(old_N, curr_N)
+            if instruct_rotate != 0:
+                N_of_Normal = find_unitNormal(curr_N, old_N)
+                
+                r = find_dotProduct(N_of_Normal, rotational_axis_vec)
+                if r > 0:
+                    instruct_rotate *= 1 # clockwise
+                elif r < 0:
+                    instruct_rotate *= 1 # clockwise
+        
+        rotational_axis_vec = v1
+        old_N = curr_N
+
+        print(f"rotate: {instruct_rotate}, bend: {instruct_bend}, feed: {instruct_feed}")
+        #make txt file
+        if instruct_rotate != 0:
+            if instruct_rotate > 0: sign = '+'
+            else: sign = ''
+            instructions += "R" + sign + str(round(instruct_rotate,1)) + "\n"
+        if instruct_bend != 0:
+            if instruct_bend > 0: sign = '+'
+            else: sign = ''
+            instructions += "B" + sign + str(round(instruct_bend,1)) + "\n"
+        if instruct_feed != 0:
+            if instruct_feed > 0: sign = ''
+            else: sign = ''
+            instructions += "F" + sign + str(round(instruct_feed*10)) + "\n"
+    with open("instructions.txt", "w") as f:
+        f.write(instructions)
+
+
+
+
+
+def translator_old(path,corners_pos, bend_dir = 1):
+    instructions = ""
+    #bend dir is either 1 or set to user preference
     rotate_dir = 1
     past_N = None
     
     for i in range(1, len(path)): #cause we going in trios
-        nOfN = instruct_bend = instruct_feed = instruct_rotate = curr_N = 0
+        nOfN = instruct_bend = instruct_feed = instruct_rotate = curr_N = rotate_angle = 0
 
         #find feed
         pt2, pt1 = path[i-1], path[i] #pt1 is curr, pt2 is previous
@@ -73,37 +149,33 @@ def translator(path,corners_pos):
             pt3 = path[i-2]
             v2 = find_vector(pt3,pt2, corners_pos)
             #bend magnitude
-            instruct_bend = find_angleBetweenVec(v2, v1)
+            instruct_bend = find_angleBetweenVec(v1, v2)
             #current planes normal
-            curr_N = find_unitNormal(v2, v1)
+            curr_N = find_unitNormal(v1, v2)
         if i > 2: 
-            rotate_angle = 0
             #find rotate
-            instruct_rotate = find_angleBetweenVec(past_N,curr_N)
-            
-            
-
-            #changing of be
-            if instruct_rotate == 180: #bend changes direction (no plane change)
+            instruct_rotate = find_angleBetweenVec(curr_N,past_N)   
+        
+            #figure out of bending change direction
+            if instruct_rotate == 180: #no plane change
                 instruct_rotate = 0
                 bend_dir = -bend_dir
-                #print()
             elif instruct_rotate != 0: #we are changing plane
-                #change  
-                #normal of 2 normals' plane
-                nOfN = find_unitNormal(v2,v1)
-                rotate_angle = find_rotaryangle(past_N,curr_N)
-                #print(rotate_angle)
+                nOfN = find_unitNormal(curr_N,past_N)
                 if find_angleBetweenVec(nOfN, v1) == 180:
                     bend_dir = -bend_dir
-            print(instruct_rotate, rotate_angle)
+
+
+            if instruct_rotate != 0:
+                instruct_rotate = find_rotaryangle(curr_N,past_N)
+                
         if i > 1:
             past_N = curr_N #ik ts is disgusting but first node still havent find normal
 
 
-        instruct_rotate *= rotate_dir
+        instruct_rotate *= rotate_dir  
         instruct_bend *= bend_dir
-        print(f"corner: {path[i]}, r:{instruct_rotate}, b:{instruct_bend}, f:{instruct_feed}")
+        print(f"corner: {path[i]}, r:{instruct_rotate}, b:{instruct_bend}, f:{instruct_feed}, n:{curr_N}")
 
         #make txt file
         if instruct_rotate != 0:
@@ -139,36 +211,37 @@ def find_project(a,a_dot_n,n):
     a_proj = [a[i]-a_dot_n*n[i] for i in range(3)] 
     return a_proj
 
-def find_unitNormal(z,y):
+def find_unitNormal(a,b):
     #find normal
-    n = find_crossProduct(z,y)
+    n = find_crossProduct(a,b)
     #make it a unit vector
     length = find_lineLength(0,1,[[0,0,0],n])
     n = [num/length for num in n]
     return n
 
-def find_angleBetweenVec(z,y):
-    dotprd = find_dotProduct(z,y)
-    dotprd /= find_lineLength(0,1,[[0,0,0],z])
-    dotprd /= find_lineLength(0,1,[[0,0,0],y])
+def find_angleBetweenVec(a,b):
+    dotprd = find_dotProduct(a,b)
+    dotprd /= find_lineLength(0,1,[[0,0,0],a])
+    dotprd /= find_lineLength(0,1,[[0,0,0],b])
     theta = math.acos(dotprd)/math.pi*180
     if theta < 0.1: theta = 0 #if its colineear jus get clamp it
+    if theta >199.9: theta = 180
     return theta
 
-def find_crossProduct(z, y):
+def find_crossProduct(a, b):
     #finding cross product
     new = [0,0,0]
-    new[0] = (z[1]*y[2] - z[2]*y[1])
-    new[1] = (-z[0]*y[2] + z[2]*y[0])
-    new[2] = (z[0]*y[1] - z[1]*y[0])
+    new[0] = (a[1]*b[2] - a[2]*b[1])
+    new[1] = (-a[0]*b[2] + a[2]*b[0])
+    new[2] = (a[0]*b[1] - a[1]*b[0])
 
     return new
 
-def find_dotProduct(z, y):
+def find_dotProduct(a, b):
     #finding cross product
     sum = 0
     for i in range(3):
-        sum += z[i]*y[i]
+        sum += a[i]*b[i]
     return sum
 
 def find_vector(a,b, corner_pos):
@@ -345,11 +418,21 @@ def find_lineLength(a, b, corners_pos):
     length = (diagonal**2 + z**2)**0.5
     return length
 
+def find_referenceNormal(a,b,c,normals):
+    tmp = [a,b,c]
+    tmp.sort()
+    key = ""
+    for ch in tmp:
+        key += str(ch)
+    return normals[key]
+
+
 def import_shape(file):
     with open(file, "r") as f:
         shape = f.read().split("\n")
         shape = shape[:-1]
 
+    #---get corner pos----
     #assign each corner a index + store pos
     corners_pos = [0] #set one first to act as a dud to create 1-based indexing
     for cmd in shape:
@@ -360,27 +443,55 @@ def import_shape(file):
             coords = list(map(float, coords))
             corners_pos.append(coords)
 
-
+    #--- make edges list---
     #create connectivity matrix 
     edges = []
     for i in range(len(corners_pos)):
         tmp = []
-        for j in range(len(corners_pos)):
+        for _ in range(len(corners_pos)):
             tmp.append(0)
         edges.append(tmp)
 
-    #populate with f (obj is 1-indexed)
+    #---make normals list---
+    #temp normals reference
+    face_normals = []
+    for cmd in shape:
+        cmd = cmd.split()   
+        if cmd[0] == "vn":
+            tmp = [float(x) for x in cmd[1:]]
+            face_normals.append(tmp)
+
+    #populate edge list and normal list with f (obj is 1-indexed)
+    normals = {}
     for cmd in shape:
         cmd = cmd.split()   
         if cmd[0] == "f":
             cmd = cmd[1:]
+            normal = face_normals[int(cmd[0].split("/")[2])-1]
             for i in range(len(cmd)):
-                curr = int(cmd[i])
-                if i == 0: prev = int(cmd[-1])
-                else: prev = int(cmd[i-1])
-                edges[curr][prev] = 1
-                edges[prev][curr] = 1
-    return corners_pos, edges
+                curr_i = i
+                prevOne_i = (i-1)%len(cmd)
+                prevTwo_i = (i-2)%len(cmd)
+                curr = int(cmd[curr_i].split("/")[0])
+                prevOne = int(cmd[prevOne_i].split("/")[0])
+                prevTwo = int(cmd[prevTwo_i].split("/")[0])
+
+                #create edge list
+                edges[curr][prevOne] = 1
+                edges[prevOne][curr] = 1
+
+                #create normals face
+                #reorder the edges to accending
+                tmp = [curr, prevOne, prevTwo]
+                tmp.sort()
+                key = ""
+                for ch in tmp:
+                    key += str(ch)
+                normals[key] = normal
+
+
+
+    return corners_pos, edges, normals
 
 def debug_printList(list):
     for ch in list:
