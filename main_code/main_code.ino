@@ -81,7 +81,7 @@ void setup() {
   //   Serial.println("Initialization done");
   // }
 
-<<<<<<< HEAD
+
   // //// Reading SD Card
   // File file = SD.open("bend.txt");
   // if (!file) {
@@ -173,98 +173,6 @@ void setup() {
   //     }
   //   }
   // }
-=======
-  //// Reading SD Card
-  File file = SD.open("bend.txt");
-  if (!file) {
-    Serial.println("Error opening file!");   // File does not exist
-  } else {
-    if (file.size() == 0) {
-      Serial.println("File exists but is empty!");
-    } else {
-      while (file.available()) {
-        String line = file.readStringUntil('\n');
-        Serial.println(line);
-        // Serial.println(line[0]);
-        // Serial.println(line.substring(1));
-        funct = line[0];
-        dir = line[1];
-        Serial.println(funct);
-        if (funct == "F") {
-          centi_amt = line.substring(1).toFloat();
-          Serial.println((centi_amt / (33.33*pi)) * 200);
-          feed_stepper.move((-((centi_amt / (33.33*pi)) * 200))); // (2.76 * pi) / 200
-          while (feed_stepper.distanceToGo() != 0) {
-            feed_stepper.runSpeedToPosition();
-          }
-          feed_stepper.setCurrentPosition(0);
-          delay(2000);
-        } else if (funct == "R") {
-          degree_amt = line.substring(2).toFloat();
-          Serial.println((((degree_amt / 360) * 200) / 24) * 60);
-          if (dir == "-") {
-            rotate_stepper.move((((degree_amt / 360) * 200) / 24) * 60);
-            while (rotate_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-              rotate_stepper.runSpeedToPosition();
-            }
-          } else {
-            rotate_stepper.move((-(((degree_amt / 360) * 200) / 24) * 60));
-            while (rotate_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-              rotate_stepper.runSpeedToPosition();
-            }
-          }
-          // rotate_stepper.runToPosition();
-          delay(2000);
-        } else if (funct == "B") {
-          myservo.write(120);
-          delay(500);
-          degree_amt = line.substring(2).toFloat();
-          if (dir == "-") {
-            if (bend_stepper.currentPosition() == 0) {
-              myservo.write(90);
-              delay(500);
-              bend_stepper.moveTo((((degree_amt / 360) * 200) / 17) * 31);  // Move forward again
-              while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-                bend_stepper.runSpeedToPosition();
-              }
-              myservo.write(0);
-              delay(500);
-              bend_stepper.moveTo(0);
-              while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-                bend_stepper.runSpeedToPosition();
-              }
-            }
-          } else {
-            if (bend_stepper.currentPosition() == 0) {
-              myservo.write(120);
-              delay(500);
-              bend_stepper.moveTo((-((degree_amt / 360) * 200) / 17) * 31);  // Move forward again
-              while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-                bend_stepper.runSpeedToPosition();
-              }
-              myservo.write(0);
-              delay(500);
-              bend_stepper.moveTo(0);
-              while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-                bend_stepper.runSpeedToPosition();
-              }
-            }
-            // bend_stepper.moveTo((-(degree_amt / 360) * 200));
-            // while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-            //   bend_stepper.runSpeedToPosition();
-            // }
-            // myservo.write(0);
-            // delay(500);
-            // bend_stepper.moveTo((degree_amt / 360) * 200);
-            // while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
-            //   bend_stepper.runSpeedToPosition();
-            // }
-          }
-          delay(2000);
-        }
-      }
-    }
-  }
 }
 
 void loop () {
