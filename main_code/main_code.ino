@@ -60,7 +60,7 @@ void setup() {
   rotate_stepper.setSpeed(1200); //Set the constant speed that the stepper will move
 
   //// Bending Stepper Motor Settings
-  bend_stepper.setMaxSpeed(5000); // Max speed of stepper
+  bend_stepper.setMaxSpeed(10000); // Max speed of stepper
   bend_stepper.setAcceleration(7000); //Set acceleration for stepper
   bend_stepper.setSpeed(8000); //Set the constant speed that the stepper will move
 
