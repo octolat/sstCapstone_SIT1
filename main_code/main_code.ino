@@ -131,13 +131,44 @@ void setup() {
             if (bend_stepper.currentPosition() != 0) {
               myservo.write(120);
               delay(500);
-              bend_stepper.moveTo(((((degree_amt / 360) * 200) / 17) * 31) * 8);  // Move forward again
+              float bend_angle = ((((degree_amt / 360) * 200) / 17) * 31) * 8
+              bend_stepper.moveTo(bend_angle);  // Move forward again
               while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
                 bend_stepper.runSpeedToPosition();
               }
-              myservo.write(0);
+              myservo.write(0); //servo down
               delay(500);
-              bend_stepper.moveTo(0);
+
+              //read flex sensor
+              int underbend = analogRead(A8);
+              //int value = analogRead(A1);
+              // values[it] = value;
+              // if (it == num-1) {
+              //   it = 0;
+              // } else {
+              //   it++;
+              // }
+
+
+              // int sum = 0;
+              // for (int i =0; i < num; i++) {
+              //   sum += values[i];
+              // }
+
+              // Serial.println(sum/num);
+
+              //if underbend
+              while (underbend >= 100){
+                myservo.write(120);
+                bend_stepper.moveTo(bend_angle+4.44);
+                delay(500);
+                myservo.write(0);
+                bend_stepper.moveTo(bend_angle+4.44+10);
+                int underbend = analogRead(A8);
+                delay(500);
+              }
+
+              bend_stepper.moveTo(0); //turn back
               while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
                 bend_stepper.runSpeedToPosition();
               }
