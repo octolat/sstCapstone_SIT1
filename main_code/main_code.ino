@@ -73,13 +73,12 @@ void setup() {
   Serial.println("Initializing SD Card...");
   if (!SD.begin(chipselect)) {
     Serial.println("Initialization failed");
-    // while (1);
   } else {
     Serial.println("Initialization done");
   }
 
   //// Reading SD Card
-  File file = SD.open("bend.txt");
+  File file = SD.open("square.txt");
   if (!file) {
     Serial.println("Error opening file!");   // File does not exist
   } else {
@@ -88,16 +87,14 @@ void setup() {
     } else {
       while (file.available()) {
         String line = file.readStringUntil('\n');
-        Serial.println(line);
-        // Serial.println(line[0]);
-        // Serial.println(line.substring(1));
+        Serial.println(line);  
         funct = line[0];
         dir = line[1];
         Serial.println(funct);
         if (funct == "F") {
           centi_amt = line.substring(1).toFloat();
           Serial.println((centi_amt / (33.33*pi)) * 200);
-          feed_stepper.move((-((centi_amt / (33.33*pi)) * 200))); // (2.76 * pi) / 200);
+          feed_stepper.move((-((centi_amt / (33.33*pi)) * 200)));
           while (feed_stepper.distanceToGo() != 0) {
             feed_stepper.runSpeedToPosition();
           }
@@ -123,7 +120,7 @@ void setup() {
           degree_amt = line.substring(2).toFloat();
           if (dir == "-") {
             // Offset pin 
-            bend_stepper.move((-((((8.0 / 360.0) * 200.0) / 17.0 ) * 31.0) * 8.0));
+            bend_stepper.move((-((((9.0 / 360.0) * 200.0) / 17.0 ) * 31.0) * 8.0));
             bend_stepper.runToPosition();
             delay(1000);
 
@@ -131,7 +128,7 @@ void setup() {
             if (bend_stepper.currentPosition() != 0) {
               myservo.write(120);
               delay(500);
-              float bend_angle = ((((degree_amt / 360) * 200) / 17) * 31) * 8
+              float bend_angle = (((((degree_amt / 360) * 200) / 17) * 31) * 8);
               bend_stepper.moveTo(bend_angle);  // Move forward again
               while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
                 bend_stepper.runSpeedToPosition();
@@ -140,7 +137,7 @@ void setup() {
               delay(500);
 
               //read flex sensor
-              int underbend = analogRead(A8);
+              // int underbend = analogRead(A8);
               //int value = analogRead(A1);
               // values[it] = value;
               // if (it == num-1) {
@@ -158,15 +155,15 @@ void setup() {
               // Serial.println(sum/num);
 
               //if underbend
-              while (underbend >= 100){
-                myservo.write(120);
-                bend_stepper.moveTo(bend_angle+4.44);
-                delay(500);
-                myservo.write(0);
-                bend_stepper.moveTo(bend_angle+4.44+10);
-                int underbend = analogRead(A8);
-                delay(500);
-              }
+              // while (underbend >= 100){
+              //   myservo.write(120);
+              //   bend_stepper.moveTo(bend_angle+4.44);
+              //   delay(500);
+              //   myservo.write(0);
+              //   bend_stepper.moveTo(bend_angle+4.44+10);
+              //   int underbend = analogRead(A8);
+              //   delay(500);
+              // }
 
               bend_stepper.moveTo(0); //turn back
               while (bend_stepper.distanceToGo() != 0) { // Make stepper turn until it reaches 0 (it starts from whatever u setted in moveTo())
@@ -175,7 +172,7 @@ void setup() {
             }
           } else {
             // Offset pin 
-            bend_stepper.move(((((8.0 / 360.0) * 200.0) / 17.0 ) * 31.0) * 8.0);
+            bend_stepper.move(((((9.0 / 360.0) * 200.0) / 17.0 ) * 31.0) * 8.0);
             bend_stepper.runToPosition();
             delay(1000);
 
