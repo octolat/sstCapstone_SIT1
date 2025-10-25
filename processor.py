@@ -25,47 +25,22 @@ debug_printList(list) -> None
 """  
 
 def main():
-    corners_pos, edges, normals = import_shape("shapes/triangle.obj")
-    '''
-    corners_pos, edges = import_shape("shapes/cube.obj")
+    path = [7, 8, 6, 5, 7, 3, 1, 2, 4, 3, 1, 5, 6, 2, 4, 8]
+    corners_pos, edges, normals = import_shape("shapes/trombone.obj")
     edges_eulered = make_eulerian(corners_pos, edges)
     path = heirholzer(edges_eulered)
-    edges_straight, path_straight = anti_180_rerouting(corners_pos, edges, path)
-    debug_printList(edges_straight)
+    print(path)
+    edges, newpath = anti_180_rerouting(corners_pos, edges_eulered, path)
+    #debug_printList(edges_straight)
+    #debug_renderShape(corners_pos, edges_eulered, True)
+    
+    #print(path)
     debug_animatePath(corners_pos, path, 0.7)
-    #debug_animatePath(corners_pos, path_straight, 0.7)
-    '''
+    debug_animatePath(corners_pos, newpath, 0.7)
+    #print(path)
+    #translator(path,corners_pos,normals)
 
-    t = [
-        [0,0,0],
-        [0,1,1],
-        [1,1,0],
-        [1,2,0]
-    ]
-    p = [[0,0,0],
-         [2,0,0],
-         [2,1,0],
-         [0,1,0],
-         [1,1,1],
-         [1,0,1]
-         ] 
-    p_path = [0,1,2,4,5,0,3,4,5,1]
-    p_path_shifted = [2,1,3,6,5,2,4]
-    tmp = [[0,0,0],
-           [5,0,0],
-           [1,3,0],
-           [2,1,1],
-           [1,-3,0]]
-    t_path = [0,1,2,3,0]
-
-
-
-
-    #debug_renderShape(corners_pos,edges,True)
-    debug_printList(corners_pos)
-    print()
-    print(normals)
-    translator(p_path_shifted,corners_pos,normals)
+    
 
 def translator(path,corners_pos, normals):
     instructions = ""
@@ -110,7 +85,7 @@ def translator(path,corners_pos, normals):
         rotational_axis_vec = v1
         old_N = curr_N
 
-        print(f"rotate: {instruct_rotate}, bend: {instruct_bend}, feed: {instruct_feed}")
+        print(f"cnr: {pt1}, rotate: {instruct_rotate}, bend: {instruct_bend}, feed: {instruct_feed}")
         #make txt file
         if instruct_rotate != 0:
             if instruct_rotate > 0: sign = '+'
@@ -127,97 +102,13 @@ def translator(path,corners_pos, normals):
     with open("instructions.txt", "w") as f:
         f.write(instructions)
 
-
-
-
-
-def translator_old(path,corners_pos, bend_dir = 1):
-    instructions = ""
-    #bend dir is either 1 or set to user preference
-    rotate_dir = 1
-    past_N = None
-    
-    for i in range(1, len(path)): #cause we going in trios
-        nOfN = instruct_bend = instruct_feed = instruct_rotate = curr_N = rotate_angle = 0
-
-        #find feed
-        pt2, pt1 = path[i-1], path[i] #pt1 is curr, pt2 is previous
-        instruct_feed = find_lineLength(pt1, pt2, corners_pos)
-        v1 = find_vector(pt2,pt1, corners_pos)
-        if i > 1: 
-            #find bend
-            pt3 = path[i-2]
-            v2 = find_vector(pt3,pt2, corners_pos)
-            #bend magnitude
-            instruct_bend = find_angleBetweenVec(v1, v2)
-            #current planes normal
-            curr_N = find_unitNormal(v1, v2)
-        if i > 2: 
-            #find rotate
-            instruct_rotate = find_angleBetweenVec(curr_N,past_N)   
-        
-            #figure out of bending change direction
-            if instruct_rotate == 180: #no plane change
-                instruct_rotate = 0
-                bend_dir = -bend_dir
-            elif instruct_rotate != 0: #we are changing plane
-                nOfN = find_unitNormal(curr_N,past_N)
-                if find_angleBetweenVec(nOfN, v1) == 180:
-                    bend_dir = -bend_dir
-
-
-            if instruct_rotate != 0:
-                instruct_rotate = find_rotaryangle(curr_N,past_N)
-                
-        if i > 1:
-            past_N = curr_N #ik ts is disgusting but first node still havent find normal
-
-
-        instruct_rotate *= rotate_dir  
-        instruct_bend *= bend_dir
-        print(f"corner: {path[i]}, r:{instruct_rotate}, b:{instruct_bend}, f:{instruct_feed}, n:{curr_N}")
-
-        #make txt file
-        if instruct_rotate != 0:
-            instructions += "R" + str(round(instruct_rotate,1)) + "\n"
-        if instruct_bend != 0:
-            instructions += "B" + str(round(instruct_bend,1)) + "\n"
-        instructions += "F" + str(round(instruct_feed,1)) + "\n"
-
-    with open("instructions.txt", "w") as f:
-        f.write(instructions)
-
-    #rotate, bend, feed
-    #first group, feed only   
-    
-def find_rotaryangle(a,b):
-    normal = find_unitNormal(a,b) #find the unit normal of the normals
-    a_dot_n = find_dotProduct(a,normal) # dot product of a and normal to find costheta
-    b_dot_n = find_dotProduct(b,normal)
-    a_proj = find_project(a,a_dot_n,normal)
-    b_proj = find_project(b,b_dot_n,normal)
-    cross_proj = find_crossProduct(a_proj,b_proj) #cross product them to get the 
-    y = find_dotProduct(cross_proj,normal)
-    x = find_dotProduct(a_proj,b_proj)
-    #print(a_dot_n, b_dot_n)
-    return math.atan2(y,x)/math.pi * 180 #atan2 cus it gives astc
-
-def find_project(a,a_dot_n,n): 
-    # to find projection
-    # a.n gives |a|costheta cus n is unit vector, which is the shadow of the line on the normal axis
-    # multiply by the n that it correlated to, so like the [x,y,z] gets multiplied back to its original
-    # subtract that from the original a_x
-    # so now all three axes are projected onto new plane
-    a_proj = [a[i]-a_dot_n*n[i] for i in range(3)] 
-    return a_proj
-
 def find_unitNormal(a,b):
     #find normal
     n = find_crossProduct(a,b)
     #make it a unit vector
     length = find_lineLength(0,1,[[0,0,0],n])
     n = [num/length for num in n]
-    return n
+    return n 
 
 def find_angleBetweenVec(a,b):
     dotprd = find_dotProduct(a,b)
@@ -262,21 +153,19 @@ def heirholzer(edges):
         curr = closedpath[-1]
         edge_travelled = False
         for idx, neighbour in enumerate(edges[curr]):
-            if neighbour > 0:
+            if neighbour > 0: #found a neighbour
                 closedpath.append(idx)
                 edges[curr][idx] -=1
                 edges[idx][curr] -=1
                 edge_travelled = True
                 break
-        if not edge_travelled:
+        if not edge_travelled: #theres no neightbours
             bendpath.append(curr)
             closedpath = closedpath[:-1]
-
+    bendpath.reverse()
     return bendpath
 
 def anti_180_rerouting(corners_pos, edges, path):
-    #debug_renderShape(corners_pos, edges, True)
-    print(path)
     edges = edges[:]
     path = path[:]
     iterator = 0
@@ -295,9 +184,6 @@ def anti_180_rerouting(corners_pos, edges, path):
                 cutted_edge[cnr_start][back] = 0
                 cutted_edge[back][cnr_start] = 0
 
-            print(cnr_start, cnr_mid)
-            debug_printList(cutted_edge)
-
             #disktras new thing
             _, new = list(dijkstra(cnr_start, cnr_mid, corners_pos, cutted_edge))
             N_new = len(new)
@@ -313,23 +199,6 @@ def anti_180_rerouting(corners_pos, edges, path):
             for i in range(len(new)-1):
                 edges[new[i]][new[i+1]] += 1
                 edges[new[i+1]][new[i]] += 1
-            """       
-            #remove start, end edges
-            edges[cnr_start][cnr_mid] -= 1
-            edges[cnr_mid][cnr_start] -= 1
-            
-
-            
-            #update iterator to be wjere it was
-            iterator += N_new
-            """
-
-            
-            debug_printList(edges)
-            print(path)
-            print(new)
-            #debug_animatePath(corners_pos,edges,path, 0.7)
-            
               
         iterator += 1
     return edges, path
