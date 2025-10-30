@@ -14,7 +14,6 @@
 //// Servo
 Servo myservo;
 
-
 //preset numbers
 #define SERVO_UP 180
 #define SERVO_MEASURE 60
@@ -35,6 +34,9 @@ double centi_amt;
 double degree_amt;
 double pi = 2 * acos(0.0);
 
+String data[100];
+
+int count = 0;
 
 //// Stepper motors
 #define enable_pin 8                                      // define the enable pin to make the drive high and low (All stepper motor share this pin)
@@ -42,18 +44,19 @@ AccelStepper feed_stepper(AccelStepper::DRIVER, 2, 5);    // X Driver ((Don't Ch
 AccelStepper rotate_stepper(AccelStepper::DRIVER, 3, 6);  // Y Driver ((Don't Change), stepPin, dirPin)
 AccelStepper bend_stepper(AccelStepper::DRIVER, 4, 7);    // Z Driver ((Don't Change), stepPin, dirPin)
 
+
 // Convert degree into steps (bender only cause its micro steps)
-float unit_to_step(int motor, float amt) {
-  if (motor == BENDER) return ((amt / 360) * 200 * 8) / 17 * 31;
-  if (motor == ROTATER) return (((amt / 360) * 200) / 20) * 65;
+double unit_to_step(int motor, double amt) {
+  if (motor == BENDER) return ((amt / 360.0) * 200.0 * 8.0) / 17.0 * 31.0;
+  if (motor == ROTATER) return (((amt / 360.0) * 200.0) / 20.0) * 65.0;
   if (motor == FEEDER) return (amt / (33.33 * pi)) * 200.0;
 }
 
 // Convert steps to degree (bender only cause its micro steps)
-float step_to_unit(int motor, float amt) {
-  if (motor == BENDER) return ((amt / 200 / 8) * 360) / 17 * 31;
-  if (motor == ROTATER) return (((amt / 200) * 360) / 24) * 60;
-  if (motor == FEEDER) return (amt / 200.0 * (33.33 * pi));
+double step_to_unit(int motor, double amt) {
+  if (motor == BENDER) return ((amt / 200.0 / 8.0) * 360.0) * 17.0 / 31.0;
+  if (motor == ROTATER) return (((amt / 200.0) * 360.0) * 20.0) / 65.0;
+  if (motor == FEEDER) return (amt / 200.0 * (33.33 * pi)); // may be wrong!!
 }
 
 // Functiion to initialise the sd card reader module (this should be placed at the start of set up)
@@ -81,14 +84,15 @@ void setPin(float angle) {
 // PID to fix overbend and underbend of wire
 void fixBend(float bend_angle) {
   //EVERYTHING IS IN STEP NOT DEG
-  float kp = 1.8;
+  float kp = 1.67;
   float kd = 0.3;
-  int offset = unit_to_step(BENDER, 5);  //how much to move away to clear the wire !todo measure this shit
-  int additonal_offset = unit_to_step(BENDER, 10);
+  int offset = unit_to_step(BENDER, 15);  //how much to move away to clear the wire !todo measure this shit
+  int additonal_offset = unit_to_step(BENDER, 0);
   int threshold = unit_to_step(BENDER, 1);
   int max_tries = -1;
 
-  int touch, dir, underbend;
+  int touch, dir;
+  double underbend;
   long error = threshold + 1;  // plus 1 so that the while loop will run at least once
   int tries = 0;
 
@@ -98,21 +102,22 @@ void fixBend(float bend_angle) {
   while (true) {
     if (max_tries > 0 && max_tries <= tries) break;  // limit the number of attempts
     tries++;
-    touch = 0;
+    touch = 1;
     underbend = 0;
 
     //find the wire
     myservo.write(SERVO_MEASURE);
-    bend_stepper.setSpeed(dir * 250);
-    while (touch != 1) {
+    bend_stepper.setSpeed(dir * 400);
+    while (touch != 0) {
       touch = digitalRead(TOUCH_PIN);
-      bend_stepper.run();
-      underbend += 1;
-      delay(10);
+      bend_stepper.move(1);
+      if (bend_stepper.runSpeed()) underbend++;
+      //Serial.println(underbend);
+      delay(1);
     }
-    error = abs(bend_angle) - underbend - offset;  // minus offset to make the angle centered to the center of the pin
+    error = abs(unit_to_step(BENDER, bend_angle)) - underbend;  // minus offset to make the angle centered to the center of the pin
     float error_dir = error / abs(error);
-    float move_amt = ((error * kp) + (offset * 2 * error_dir)) * dir;  //offset *2 so that minimally there is still like 5 deg of bending going on, like a minimum bend type shi
+    float move_amt = ((error * kp) + (offset * 0 * error_dir)) * dir;  //offset *2 so that minimally there is still like 5 deg of bending going on, like a minimum bend type shi
 
     Serial.println("hit");
     Serial.print("angle measured: ");
@@ -157,7 +162,7 @@ void fixBend(float bend_angle) {
     delay(1000);
 
     // move away before retracting the bend pin
-    bend_stepper.move((offset + additonal_offset) * dir * error_dir);
+    bend_stepper.move((offset + additonal_offset) * dir * error_dir * -1);
     bend_stepper.runToPosition();
     delay(1000);
 
@@ -173,6 +178,8 @@ void fixBend(float bend_angle) {
 
 void setup() {
   Serial.begin(9600);
+
+  pinMode(TOUCH_PIN, INPUT_PULLUP);
 
   myservo.attach(SERVO_PIN);  // Attaches servo to pin
   myservo.write(0);           // Maker servo run to zero
@@ -206,8 +213,11 @@ void setup() {
   initialise();
 
   // Function to make pin center
-  setPin(118);
+  setPin(115);
 
+  fixBend(90);
+
+  /*
   // Reading SD Card
   File file = SD.open("cube.txt"); // Open file inside open() 
 
@@ -223,14 +233,23 @@ void setup() {
       delay(500);
     }
   }
-
-  //main code
   while (file.available()) {
     String line = file.readStringUntil('\n'); // Read the instructions line by line
     Serial.println(line); // Print each line
+    data[count] = line;
+    count += 1;
+    delay(20);
+  }
 
+  // Close the file
+  file.close();
+  Serial.println("File Closed");
+
+  //main code
+  for (int i = 0; i < count; i++) {
+    String line = data[i];
+    Serial.println(line);
     funct = line[0]; // Check the first character of the line for F, B, R (To decide which function to do; Feed, Rotate, Bend)
-    Serial.println(funct);
     dir = line[1]; // Check second character of line for + or - (To decide which direction the motor will turn, + is anti-clockwise, - is clockwise)
 
     if (funct == "F") {
@@ -239,7 +258,6 @@ void setup() {
       //// Get Amount to feed
       float centi_amt = line.substring(1).toFloat(); // Convert second character onwards till the last character (How much to feed in milimetres) onwards from a string to a float 
       float feed_amt = unit_to_step(FEEDER, centi_amt); // Calculate the amount of steps to feed (Formula is based on the gear size used)
-      Serial.println(feed_amt); 
 
       //// Run the Motors
       feed_stepper.move(-1 * feed_amt);
@@ -254,12 +272,11 @@ void setup() {
       //// Getting amount to rotate
       degree_amt = line.substring(2).toFloat(); // Convert third character onwards till the last character (How much to rotate in degree) onwards from a string to a float 
       float rotate_amt = unit_to_step(ROTATER, degree_amt); // Calculate amount of steps to rotate (Formula is based on the gear ratio used)
-      Serial.println(rotate_amt);
 
       int dir_sign = 1;
       if (dir == "-") dir_sign = -1; // find the direction of rotating
 
-      rotate_stepper.move(rotate_amt * dir_sign); //rotate
+      rotate_stepper.move(rotate_amt * dir_sign * -1); //rotate
       rotate_stepper.runToPosition();
 
       delay(2000);
@@ -272,7 +289,7 @@ void setup() {
       float bend_amt(unit_to_step(BENDER, degree_amt));
 
       int dir_sign = 1;
-      if (dir == "-") int dir_sign = -1; // find the direction of turning
+      if (dir == "-") dir_sign = -1; // find the direction of turning
 
       bend_stepper.move(-1 * dir_sign * unit_to_step(BENDER, 15.0)); // Offset pin by 15 degrees
       bend_stepper.runToPosition();
@@ -294,6 +311,7 @@ void setup() {
       delay(2000);
     }
   }
+  */
 }
 
 void loop() {
