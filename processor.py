@@ -27,8 +27,6 @@ debug_printList(list) -> None
 def main():
     path = [7, 8, 6, 5, 7, 3, 1, 2, 4, 3, 1, 5, 6, 2, 4, 8]
     corners_pos, edges, normals = import_shape("shapes/cube.obj")
-    debug_printList(corners_pos)
-    debug_printList(edges)
     #edges_eulered = make_eulerian(corners_pos, edges)
     #path = heirholzer(edges_eulered)
     #print(path)
@@ -36,17 +34,19 @@ def main():
     #debug_printList(edges_straight)
     #debug_renderShape(corners_pos, edges_eulered, True)
     
+    
     #print(path)
     #debug_animatePath(corners_pos, path, 0.7)
     #debug_animatePath(corners_pos, newpath, 0.7)
     #print(path)
-    #translator(path,corners_pos,normals)
+    translator(path,corners_pos,normals)
 
     
 
 def translator(path,corners_pos, normals):
     instructions = ""
     old_N = rotational_axis_vec = None
+    absolute_rotate = 0
 
     for i in range(1, len(path)):
         N_of_Normal = instruct_bend = instruct_feed = instruct_rotate = curr_N = 0
@@ -75,6 +75,13 @@ def translator(path,corners_pos, normals):
         #find rotate
         if i > 2:
             instruct_rotate = find_angleBetweenVec(old_N, curr_N)
+            absolute_rotate += instruct_rotate
+            if abs(absolute_rotate) > 180:
+                sign = absolute_rotate / abs(absolute_rotate)
+                mag = abs(absolute_rotate) - 180
+                absolute_rotate = sign * mag
+                instruct_rotate = -1 * sign * (360 - instruct_rotate)
+
             if instruct_rotate != 0:
                 N_of_Normal = find_unitNormal(curr_N, old_N)
                 
@@ -82,7 +89,7 @@ def translator(path,corners_pos, normals):
                 if r > 0:
                     instruct_rotate *= 1 # clockwise
                 elif r < 0:
-                    instruct_rotate *= -1 # clockwise
+                    instruct_rotate *= -1 # anti-clockwise
         
         rotational_axis_vec = v1
         old_N = curr_N
