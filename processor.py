@@ -26,17 +26,19 @@ debug_printList(list) -> None
 
 def main():
     path = [7, 8, 6, 5, 7, 3, 1, 2, 4, 3, 1, 5, 6, 2, 4, 8]
-    corners_pos, edges, normals = import_shape("shapes/trombone.obj")
-    edges_eulered = make_eulerian(corners_pos, edges)
-    path = heirholzer(edges_eulered)
-    print(path)
-    edges, newpath = anti_180_rerouting(corners_pos, edges_eulered, path)
+    corners_pos, edges, normals = import_shape("shapes/cube.obj")
+    debug_printList(corners_pos)
+    debug_printList(edges)
+    #edges_eulered = make_eulerian(corners_pos, edges)
+    #path = heirholzer(edges_eulered)
+    #print(path)
+    #edges, newpath = anti_180_rerouting(corners_pos, edges_eulered, path)
     #debug_printList(edges_straight)
     #debug_renderShape(corners_pos, edges_eulered, True)
     
     #print(path)
-    debug_animatePath(corners_pos, path, 0.7)
-    debug_animatePath(corners_pos, newpath, 0.7)
+    #debug_animatePath(corners_pos, path, 0.7)
+    #debug_animatePath(corners_pos, newpath, 0.7)
     #print(path)
     #translator(path,corners_pos,normals)
 
@@ -80,7 +82,7 @@ def translator(path,corners_pos, normals):
                 if r > 0:
                     instruct_rotate *= 1 # clockwise
                 elif r < 0:
-                    instruct_rotate *= 1 # clockwise
+                    instruct_rotate *= -1 # clockwise
         
         rotational_axis_vec = v1
         old_N = curr_N
@@ -323,7 +325,7 @@ def import_shape(file):
 
     #---make normals list---
     #temp normals reference
-    face_normals = []
+    face_normals = [0]
     for cmd in shape:
         cmd = cmd.split()   
         if cmd[0] == "vn":
@@ -336,7 +338,7 @@ def import_shape(file):
         cmd = cmd.split()   
         if cmd[0] == "f":
             cmd = cmd[1:]
-            normal = face_normals[int(cmd[0].split("/")[2])-1]
+            normal = face_normals[int(cmd[0].split("/")[2])]
             for i in range(len(cmd)):
                 curr_i = i
                 prevOne_i = (i-1)%len(cmd)
