@@ -82,14 +82,12 @@ void setPin(float angle) {
 }
 
 // PID to fix overbend and underbend of wire
-void fixBend(float bend_angle) {
+void fixBend(float bend_angle, int max_tries = -1) {
   //EVERYTHING IS IN STEP NOT DEG
-  float kp = 1.67;
-  float kd = 0.3;
-  int offset = unit_to_step(BENDER, 15);  //how much to move away to clear the wire !todo measure this shit
-  int additonal_offset = unit_to_step(BENDER, 0);
-  int threshold = unit_to_step(BENDER, 1);
-  int max_tries = -1;
+  int end_limit = unit_to_step(BENDER, 120);
+  float kp = 0.15;
+  float minimum_move = 3;
+  int threshold = unit_to_step(BENDER, 1.5);
 
   int touch, dir;
   double underbend;
@@ -106,20 +104,25 @@ void fixBend(float bend_angle) {
     underbend = 0;
 
     //find the wire
+    
+    bend_stepper.setSpeed(unit_to_step(BENDER,200));
+    bend_stepper.runToNewPosition(0);
+    bend_stepper.runToNewPosition(unit_to_step(BENDER, bend_angle/2));
     myservo.write(SERVO_MEASURE);
-    bend_stepper.setSpeed(dir * 400);
     while (touch != 0) {
       touch = digitalRead(TOUCH_PIN);
-      bend_stepper.move(1);
-      if (bend_stepper.runSpeed()) underbend++;
-      //Serial.println(underbend);
-      delay(1);
+      bend_stepper.move(1 * dir);
+      bend_stepper.runSpeed();
+      //if (bend_stepper.runSpeed()) underbend++;
+      //Serial.println(step_to_unit(BENDER, underbend));
+      //delay(1);
     }
+    underbend = abs(bend_stepper.currentPosition());
     error = abs(unit_to_step(BENDER, bend_angle)) - underbend;  // minus offset to make the angle centered to the center of the pin
-    float error_dir = error / abs(error);
-    float move_amt = ((error * kp) + (offset * 0 * error_dir)) * dir;  //offset *2 so that minimally there is still like 5 deg of bending going on, like a minimum bend type shi
+    int error_dir = error / abs(error);
+    float move_amt = max(abs(error) * kp, unit_to_step(BENDER, minimum_move)) * dir * error_dir; //must move at least minimum move eg. 3 deg
 
-    Serial.println("hit");
+    Serial.println("found the wire");
     Serial.print("angle measured: ");
     Serial.println(step_to_unit(BENDER, underbend));
     Serial.print("error: ");
@@ -127,52 +130,28 @@ void fixBend(float bend_angle) {
     Serial.print("movement: ");
     Serial.println(step_to_unit(BENDER, move_amt));
 
+    delay(1500);
+
     //quit if the error is small already
     if (abs(error) < threshold) break;
 
-
-    //back off so that we can retract without catching the wire
-    Serial.println("backing off");
-    bend_stepper.setSpeed(100);
-    bend_stepper.move(-1 * (offset)*dir);
-    bend_stepper.runToPosition();
-
-    // if its overbent, we need to go to the other side of the wire to reverse bend it
-    if (error_dir == -1) {
-      Serial.println("Overbent, moving to the other side");
+    if (error_dir == 1) { //underbend
+      bend_stepper.runToNewPosition(0);
+      myservo.write(SERVO_UP);
+      delay(1000);
+      bend_stepper.runToNewPosition(unit_to_step(BENDER,bend_angle) + move_amt);
+    } else {
+      bend_stepper.runToNewPosition(0);
       myservo.write(SERVO_DOWN);
       delay(1000);
-      bend_stepper.move((offset + additonal_offset) * dir * 2);
-      bend_stepper.runToPosition();
+      bend_stepper.runToNewPosition(end_limit*dir);
+      myservo.write(SERVO_UP);
+      delay(1000);
+      bend_stepper.runToNewPosition(unit_to_step(BENDER,bend_angle) + move_amt);
+      bend_stepper.runToNewPosition(end_limit*dir);
+      myservo.write(SERVO_DOWN);
       delay(1000);
     }
-    myservo.write(SERVO_UP);
-    delay(1000);
-
-    //move to the edge of the wire
-    bend_stepper.move(additonal_offset * error_dir * dir);
-    bend_stepper.runToPosition();
-    Serial.println("At the edge, ready to correct");
-    delay(1000);
-
-    //Do the actual correction bend
-    bend_stepper.move(move_amt);
-    bend_stepper.runToPosition();
-    Serial.println("bent");
-    delay(1000);
-
-    // move away before retracting the bend pin
-    bend_stepper.move((offset + additonal_offset) * dir * error_dir * -1);
-    bend_stepper.runToPosition();
-    delay(1000);
-
-    myservo.write(SERVO_DOWN);
-    delay(1000);  // mandatory
-
-    // go home
-    bend_stepper.moveTo(0);
-    bend_stepper.runToPosition();
-    delay(1000);
   }
 }
 
@@ -200,7 +179,7 @@ void setup() {
   rotate_stepper.setSpeed(300);        //Set the constant speed that the stepper will move
 
   //// Bending Stepper Motor Settings
-  bend_stepper.setMaxSpeed(unit_to_step(BENDER, 45));     // Max speed of stepper
+  bend_stepper.setMaxSpeed(unit_to_step(BENDER, 1000));     // Max speed of stepper
   bend_stepper.setAcceleration(1000);  //Set acceleration for stepper
   bend_stepper.setSpeed(unit_to_step(BENDER, 45));    //Set the constant speed that the stepper will move
 
@@ -213,11 +192,8 @@ void setup() {
   initialise();
 
   // Function to make pin center
-  setPin(115);
+  setPin(110);
 
-  fixBend(90);
-
-  /*
   // Reading SD Card
   File file = SD.open("cube.txt"); // Open file inside open() 
 
@@ -286,7 +262,7 @@ void setup() {
 
       //// Get amount to bend 
       degree_amt = line.substring(2).toFloat(); // Convert third character onwards to till the last character (How much to bend in degree) onwards from a string to a float 
-      float bend_amt(unit_to_step(BENDER, degree_amt));
+      float bend_amt = unit_to_step(BENDER, degree_amt);
 
       int dir_sign = 1;
       if (dir == "-") dir_sign = -1; // find the direction of turning
@@ -301,6 +277,8 @@ void setup() {
       bend_stepper.move(1 * dir_sign * bend_amt);  // Move pin by bend_amt
       bend_stepper.runToPosition();
       delay(500);
+
+      fixBend(degree_amt*dir_sign, 3);
       
       bend_stepper.moveTo(0); // Move back to the center
       bend_stepper.runToPosition();
@@ -309,9 +287,10 @@ void setup() {
       myservo.write(SERVO_DOWN); // Bring pin down
         
       delay(2000);
-    }
+    }    
+
   }
-  */
+  
 }
 
 void loop() {
