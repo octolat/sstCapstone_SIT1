@@ -23,24 +23,28 @@ debug_renderShape(corners_pos_list, delay = 0, show_corners = False) -> None
 debug_printList(list) -> None
 
 """  
+shape = "cube"
+name = shape
+inversed = 1 #1 for false, -1 for true
+
+manual_paths = {
+    "cube" : [7, 8, 6, 5, 7, 3, 1, 2, 4, 3, 1, 5, 6, 2, 4, 8]
+}
 
 def main():
-    path = [7, 8, 6, 5, 7, 3, 1, 2, 4, 3, 1, 5, 6, 2, 4, 8]
-    corners_pos, edges, normals = import_shape("shapes/cube.obj")
-    #edges_eulered = make_eulerian(corners_pos, edges)
-    #path = heirholzer(edges_eulered)
-    #print(path)
+    corners_pos, edges, normals = import_shape(f"shapes/{shape}.obj")
+    #path = manual_paths["cube"]
+    edges_eulered = make_eulerian(corners_pos, edges)
+    path = heirholzer(edges_eulered)
     #edges, newpath = anti_180_rerouting(corners_pos, edges_eulered, path)
-    #debug_printList(edges_straight)
-    #debug_renderShape(corners_pos, edges_eulered, True)
-    
-    
-    #print(path)
-    #debug_animatePath(corners_pos, path, 0.7)
-    #debug_animatePath(corners_pos, newpath, 0.7)
-    #print(path)
-    translator(path,corners_pos,normals)
 
+    #print(path)
+    #print(newpath)
+    #debug_renderShape(corners_pos, edges_eulered, True)
+    debug_animatePath(corners_pos, path, 0.7)
+    #debug_animatePath(corners_pos, newpath, 0.7)
+
+    #translator(path,corners_pos,normals)
     
 
 def translator(path,corners_pos, normals):
@@ -94,7 +98,11 @@ def translator(path,corners_pos, normals):
         rotational_axis_vec = v1
         old_N = curr_N
 
+
+        instruct_bend *= inversed
+        instruct_rotate *= inversed
         print(f"cnr: {pt1}, rotate: {instruct_rotate}, bend: {instruct_bend}, feed: {instruct_feed}")
+        
         #make txt file
         if instruct_rotate != 0:
             if instruct_rotate > 0: sign = '+'
@@ -108,7 +116,7 @@ def translator(path,corners_pos, normals):
             if instruct_feed > 0: sign = ''
             else: sign = ''
             instructions += "F" + sign + str(round(instruct_feed*10)) + "\n"
-    with open("instructions.txt", "w") as f:
+    with open(f"instructions/{name}.txt", "w") as f:
         f.write(instructions)
 
 def find_unitNormal(a,b):
@@ -125,7 +133,7 @@ def find_angleBetweenVec(a,b):
     dotprd /= find_lineLength(0,1,[[0,0,0],b])
     theta = math.acos(dotprd)/math.pi*180
     if theta < 0.1: theta = 0 #if its colineear jus get clamp it
-    if theta >199.9: theta = 180
+    if theta >179.9: theta = 180
     return theta
 
 def find_crossProduct(a, b):
@@ -251,7 +259,6 @@ def make_eulerian(corners_pos, edges):
                 
         
 def dijkstra(start, end, corners_pos, edges):
-
     #todo place pirority for edges with lesser structs (to balanace cg lowk)
     visited = [False for x in range(len(corners_pos))]
     queue = []
