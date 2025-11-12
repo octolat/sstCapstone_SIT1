@@ -24,18 +24,19 @@ debug_printList(list) -> None
 
 """  
 shape = "cube"
-name = shape
+name = "halfcube"
 inversed = 1 #1 for false, -1 for true
 
 manual_paths = {
-    "cube" : [7, 8, 6, 5, 7, 3, 1, 2, 4, 3, 1, 5, 6, 2, 4, 8]
+    "cube" : [7, 8, 6, 5, 7, 3, 1, 2, 4, 3, 1, 5, 6, 2, 4, 8],
+    "halfcube" : [4,2,1,3,4,8,6,5,7,3]
 }
 
 def main():
     corners_pos, edges, normals = import_shape(f"shapes/{shape}.obj")
-    #path = manual_paths["cube"]
     edges_eulered = make_eulerian(corners_pos, edges)
-    path = heirholzer(edges_eulered)
+    path = manual_paths["halfcube"]
+    #path = heirholzer(edges_eulered)
     #edges, newpath = anti_180_rerouting(corners_pos, edges_eulered, path)
 
     #print(path)
@@ -44,14 +45,14 @@ def main():
     debug_animatePath(corners_pos, path, 0.7)
     #debug_animatePath(corners_pos, newpath, 0.7)
 
-    #translator(path,corners_pos,normals)
+    translator(path,corners_pos,normals)
     
 
 def translator(path,corners_pos, normals):
     instructions = ""
     old_N = rotational_axis_vec = None
     absolute_rotate = 0
-
+ 
     for i in range(1, len(path)):
         N_of_Normal = instruct_bend = instruct_feed = instruct_rotate = curr_N = 0
 
