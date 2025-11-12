@@ -23,10 +23,16 @@ Servo myservo;
 #define FEEDER 1
 #define ROTATER 2
 
+#define MEASURE_ACC 0
+
 //pins
 const int TOUCH_PIN = 47; 
 const int SERVO_PIN = 48;
 const int chipselect = 53;  // CS pin for SD Card Reader Module
+// MOSI pin 51
+// MISO pin 50
+// SCK pin 52
+// CS pin 53
 
 String funct = "";
 String dir = "";
@@ -82,10 +88,10 @@ void setPin(float angle) {
 }
 
 // PID to fix overbend and underbend of wire
-void fixBend(float bend_angle, int max_tries = -1) {
+long fixBend(float bend_angle, int max_tries = -1) {
   //EVERYTHING IS IN STEP NOT DEG
   int end_limit = unit_to_step(BENDER, 120);
-  float kp = 0.15;
+  float kp = 0.2;
   float minimum_move = 3;
   int threshold = unit_to_step(BENDER, 1.5);
 
@@ -93,6 +99,7 @@ void fixBend(float bend_angle, int max_tries = -1) {
   double underbend;
   long error = threshold + 1;  // plus 1 so that the while loop will run at least once
   int tries = 0;
+  long correction = 0;
 
 
   dir = bend_angle / abs(bend_angle);  //the sign of bend angle
@@ -121,6 +128,7 @@ void fixBend(float bend_angle, int max_tries = -1) {
     error = abs(unit_to_step(BENDER, bend_angle)) - underbend;  // minus offset to make the angle centered to the center of the pin
     int error_dir = error / abs(error);
     float move_amt = max(abs(error) * kp, unit_to_step(BENDER, minimum_move)) * dir * error_dir; //must move at least minimum move eg. 3 deg
+    correction += error * kp;
 
     Serial.println("found the wire");
     Serial.print("angle measured: ");
@@ -153,7 +161,27 @@ void fixBend(float bend_angle, int max_tries = -1) {
       delay(1000);
     }
   }
+  return correction;
+
 }
+
+void test(int type){
+  if (type == MEASURE_ACC){
+    int touch = 1;
+    for (int i = 0; i < 10; i++) {
+      bend_stepper.runToNewPosition(200);
+      myservo.write(SERVO_MEASURE);
+      while (touch != 0) {
+        touch = digitalRead(TOUCH_PIN);
+        bend_stepper.move(-1);
+        bend_stepper.runSpeed();
+      }
+      touch = 1;
+      Serial.println(bend_stepper.currentPosition());
+    }
+  }
+}
+
 
 void setup() {
   Serial.begin(9600);
@@ -191,8 +219,10 @@ void setup() {
   // Reader Initialization
   initialise();
 
+  
+
   // Function to make pin center
-  setPin(110);
+  setPin(114);
 
   // Reading SD Card
   File file = SD.open("cube.txt"); // Open file inside open() 
@@ -220,6 +250,9 @@ void setup() {
   // Close the file
   file.close();
   Serial.println("File Closed");
+
+  long springback_offset = 0;
+  bool first = true;
 
   //main code
   for (int i = 0; i < count; i++) {
@@ -262,8 +295,10 @@ void setup() {
 
       //// Get amount to bend 
       degree_amt = line.substring(2).toFloat(); // Convert third character onwards to till the last character (How much to bend in degree) onwards from a string to a float 
-      float bend_amt = unit_to_step(BENDER, degree_amt);
+      float bend_amt = unit_to_step(BENDER, degree_amt) + abs(springback_offset);
+      Serial.println(step_to_unit(BENDER, bend_amt));
 
+    
       int dir_sign = 1;
       if (dir == "-") dir_sign = -1; // find the direction of turning
 
@@ -276,10 +311,19 @@ void setup() {
 
       bend_stepper.move(1 * dir_sign * bend_amt);  // Move pin by bend_amt
       bend_stepper.runToPosition();
-      delay(500);
+      delay(1500);
 
-      fixBend(degree_amt*dir_sign, 3);
-      
+      //fixBend(degree_amt*dir_sign, 3);
+
+     
+      if (first) {
+        springback_offset += fixBend(degree_amt*dir_sign, 3);
+        first = false;
+      }
+      else { 
+        springback_offset += fixBend(degree_amt*dir_sign, 3);
+      }
+   
       bend_stepper.moveTo(0); // Move back to the center
       bend_stepper.runToPosition();
       delay(500);
@@ -288,7 +332,7 @@ void setup() {
         
       delay(2000);
     }    
-
+    
   }
   
 }
