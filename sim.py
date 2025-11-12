@@ -3,24 +3,40 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 instructions = """
-F2.0
-B90.0
-F1.0
-R45.0
-B90.0
-F1.4
-B90.0
-F1.0
-R90.0
-B90.0
-F1.4
-B90.0
-F1.0
-R45.0
-B90.0
-F2.0
-B90.0
-F1.0
+F20
+B+90.0
+F20
+B+90.0
+F20
+B+90.0
+F20
+R-90.0
+B-90.0
+F20
+B-90.0
+F20
+R+90.0
+B+90.0
+F20
+B+90.0
+F20
+B+90.0
+F20
+B+90.0
+F20
+R-90.0
+B-90.0
+F20
+R+90.0
+B+90.0
+F20
+B+90.0
+F20
+R-90.0
+B-90.0
+F20
+B-90.0
+F20
 """.strip().splitlines()
 
 # --- Rotation helpers ---
