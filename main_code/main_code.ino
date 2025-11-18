@@ -169,7 +169,7 @@ void test(int type){
   if (type == MEASURE_ACC){
     int touch = 1;
     for (int i = 0; i < 10; i++) {
-      bend_stepper.runToNewPosition(200);
+      bend_stepper.runToNewPosition(unit_to_step(BENDER, -15));
       myservo.write(SERVO_MEASURE);
       while (touch != 0) {
         touch = digitalRead(TOUCH_PIN);
@@ -177,7 +177,7 @@ void test(int type){
         bend_stepper.runSpeed();
       }
       touch = 1;
-      Serial.println(bend_stepper.currentPosition());
+      Serial.println(step_to_unit(BENDER, bend_stepper.currentPosition()));
     }
   }
 }
@@ -224,6 +224,7 @@ void setup() {
   // Function to make pin center
   setPin(114);
 
+  
   // Reading SD Card
   File file = SD.open("cube.txt"); // Open file inside open() 
 
@@ -321,7 +322,7 @@ void setup() {
         first = false;
       }
       else { 
-        springback_offset += fixBend(degree_amt*dir_sign, 3);
+        springback_offset += fixBend(degree_amt*dir_sign, 1);
       }
    
       bend_stepper.moveTo(0); // Move back to the center
@@ -334,7 +335,7 @@ void setup() {
     }    
     
   }
-  
+
 }
 
 void loop() {
